@@ -1,6 +1,6 @@
 import request from "request-promise";
 
-interface ElasticConfig {
+export interface ElasticConfig {
 	elasticUrl: string;
 	indexName: string;
 	type: string;
@@ -24,3 +24,8 @@ export const sendToElastic = async function (config: ElasticConfig, data: string
 	}
 };
 
+export const getTodaysIndex = function (indexName: string) {
+	const d = new Date();
+	const index = indexName + "-" + d.getFullYear() + "." + ("0" + (d.getMonth() + 1)).substr(-2) + "." + ("0" + d.getDate()).substr(-2);
+	return index;
+};

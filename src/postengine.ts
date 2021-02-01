@@ -1,8 +1,15 @@
 import os from "os";
 import pm2 from "pm2";
-import { sendToElastic } from "./utility";
+import { sendToElastic, ElasticConfig, getTodaysIndex } from "./utility";
+import * as constants from "./constants";
 
 export const postMetric = function () {
+	const elasticConfig: ElasticConfig = {
+		elasticUrl: constants.ELASTIC_URL,
+		indexName: getTodaysIndex("pm2-monit"),
+		type: "_doc",
+	};
+
 	pm2.list(async function (err, list) {
 		try {
 			if (err) {
@@ -13,7 +20,7 @@ export const postMetric = function () {
 				const d = new Date();
 				const data = {
 					"@timestamp": d.toISOString(),
-					host: os.hostname(),
+					host: constants.HOST_NAME,
 					id: proc.pm_id,
 					process: proc.name,
 					status: proc.pid ? 1 : 0,
@@ -21,14 +28,7 @@ export const postMetric = function () {
 					cpu: proc.monit?.cpu,
 				};
 
-				await sendToElastic(
-					{
-						elasticUrl: "",
-						indexName: "pm2-monit",
-						type: "_doc",
-					},
-					JSON.stringify(data)
-				);
+				await sendToElastic(elasticConfig, JSON.stringify(data));
 			}
 		} catch (error) {
 			console.error(error.message);
@@ -36,4 +36,29 @@ export const postMetric = function () {
 	});
 };
 
+export const postLog = async function (source: string, msg: any) {
+	const d = new Date();
+	const elasticConfig: ElasticConfig = {
+		elasticUrl: constants.ELASTIC_URL,
+		indexName: getTodaysIndex("pm2"),
+		type: "_doc",
+	};
 
+	const data = {
+		"@timestamp": d.toISOString(),
+		host: constants.HOST_NAME,
+		source,
+		id: msg.process.pm_id,
+		process: msg.process.name,
+		message: msg.data,
+		event: {
+			ingested: d.toISOString(),
+			timezone: "+05:30",
+			kind: "event",
+			module: msg.process.name,
+			dataset: `${msg.process.name}.${source}`,
+		},
+	};
+
+	await sendToElastic(elasticConfig, JSON.stringify(data));
+};
